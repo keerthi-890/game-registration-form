@@ -2,6 +2,7 @@ import { useState } from 'react'
 import '../Style/RegisterForm.css'
 import { registerUser } from '../services/authService'
 import { uploadProfilePhoto } from '../services/storageService'
+import { createProfile } from '../services/.profileService'
 
 const initialFormState = {
   username: '',
@@ -113,28 +114,38 @@ const handleSubmit = async (e) => {
   setIsSubmitting(true)
 
   try {
-    const { user } = await registerUser(
-  formData.email,
-  formData.password
-)
+  const { user, session } = await registerUser(
+    formData.email,
+    formData.password
+  )
 
-console.log('Auth signup successful. User ID:', user.id)
+  console.log('Auth signup successful. User ID:', user.id)
 
-const photoPath = await uploadProfilePhoto(
-  user.id,
-  photoFile
-)
+  const photoPath = await uploadProfilePhoto(
+    user.id,
+    photoFile
+  )
 
-console.log('Photo uploaded:', photoPath)
+  console.log('Photo uploaded:', photoPath)
 
-setSubmitSuccess(true)
+  await createProfile({
+    userId: user.id,
+    username: formData.username,
+    fullName: formData.fullName,
+    dateOfBirth: formData.dateOfBirth,
+    country: formData.country,
+    avatarPath: photoPath,
+  })
 
-  } catch (error) {
-    console.error('Registration error:', error)
-    setSubmitError(error.message || 'Something went wrong. Please try again.')
-  } finally {
-    setIsSubmitting(false)
-  }
+  console.log('Profile created successfully')
+
+  setSubmitSuccess(true)
+} catch (error) {
+  console.error('Registration error:', error)
+  setSubmitError(error.message || 'Something went wrong. Please try again.')
+} finally {
+  setIsSubmitting(false)
+}
 }
 
   return (
