@@ -23,3 +23,27 @@ export async function createProfile({
     throw error
   }
 }
+export async function getProfile(userId) {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', userId)
+    .single()
+
+  if (error) {
+    throw error
+  }
+
+  return data
+}
+
+export async function updateSelectedAvatar(userId, selectedAvatar) {
+  const { error } = await supabase
+    .from('profiles')
+    .update({ selected_avatar: selectedAvatar })
+    .eq('id', userId)
+
+  if (error) {
+    throw error
+  }
+}

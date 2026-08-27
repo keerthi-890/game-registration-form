@@ -17,3 +17,14 @@ export async function uploadProfilePhoto(userId, file) {
 
   return filePath
 }
+export async function getSignedAvatarUrl(filePath) {
+  const { data, error } = await supabase.storage
+    .from('avatars')
+    .createSignedUrl(filePath, 60 * 60) // valid for 1 hour
+
+  if (error) {
+    throw error
+  }
+
+  return data.signedUrl
+}

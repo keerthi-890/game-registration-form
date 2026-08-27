@@ -15,7 +15,7 @@ const initialFormState = {
   agreedToTerms: false,
 }
 
-function RegisterForm() {
+function RegisterForm({ onRegisterSuccess }) {
   const [formData, setFormData] = useState(initialFormState)
   const [photoFile, setPhotoFile] = useState(null)
   const [photoPreview, setPhotoPreview] = useState(null)
@@ -112,6 +112,7 @@ const handleSubmit = async (e) => {
   if (!isValid) return
 
   setIsSubmitting(true)
+  onRegisterSuccess()
 
   try {
   const { user, session } = await registerUser(

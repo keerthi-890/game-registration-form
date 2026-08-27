@@ -132,3 +132,17 @@
   opacity: 0.6;
   cursor: not-allowed;
 }
+.switch-link {
+  text-align: center;
+  color: #ccc;
+  margin-top: 16px;
+}
+
+.switch-link button {
+  background: none;
+  border: none;
+  color: #a29bfe;
+  cursor: pointer;
+  text-decoration: underline;
+  font-size: inherit;
+}
