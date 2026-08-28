@@ -47,3 +47,13 @@ export async function updateSelectedAvatar(userId, selectedAvatar) {
     throw error
   }
 }
+export async function updateAvatar3dUrl(userId, avatarUrl) {
+  const { error } = await supabase
+    .from('profiles')
+    .update({ avatar_3d_url: avatarUrl })
+    .eq('id', userId)
+
+  if (error) {
+    throw error
+  }
+}
