@@ -4,13 +4,17 @@ import { getSignedAvatarUrl, uploadAvatar3dFile } from '../services/storageServi
 import AvatarCreator from './AvatarCreator'
 import '../Style/MenuPage.css'
 
-const presetAvatars = [
-  { id: 'preset_1', label: 'Warrior', model: 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/CesiumMan/glTF-Binary/CesiumMan.glb' },
-  { id: 'preset_2', label: 'Mage', model: 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/RiggedFigure/glTF-Binary/RiggedFigure.glb' },
-  { id: 'preset_3', label: 'Archer', model: 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/BrainStem/glTF-Binary/BrainStem.glb' },
-  { id: 'preset_4', label: 'Rogue', model: 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Fox/glTF-Binary/Fox.glb' },
-]
+import maleAvatar1 from '../assets/img1.jpeg'
+import maleAvatar2 from '../assets/img2.jpeg'
+import femaleAvatar1 from '../assets/img3.jpeg'
+import femaleAvatar2 from '../assets/img4.jpeg'
 
+const presetAvatars = [
+  { id: 'preset_1', label: 'Soldier (Green)', image: maleAvatar1 },
+  { id: 'preset_2', label: 'Soldier (Arctic)', image: maleAvatar2 },
+  { id: 'preset_3', label: 'Soldier (Arctic F)', image: femaleAvatar1 },
+  { id: 'preset_4', label: 'Soldier (Green F)', image: femaleAvatar2 },
+]
 function MenuPage({ user }) {
   const [profile, setProfile] = useState(null)
   const [myPhotoUrl, setMyPhotoUrl] = useState(null)
@@ -119,15 +123,8 @@ function MenuPage({ user }) {
                 onClick={() => handlePresetSelect(avatar.id)}
               >
                 <div className="portrait-frame">
-                  <model-viewer
-                    src={avatar.model}
-                    camera-controls="true"
-                    auto-rotate="true"
-                    camera-orbit="0deg 75deg auto"
-                    field-of-view="30deg"
-                    style={{ width: '100%', height: '100%' }}
-                  ></model-viewer>
-                </div>
+  <img src={avatar.image} alt={avatar.label} className="preset-avatar-image" />
+</div>
                 <div className="character-label">
                   <h3>{avatar.label}</h3>
                   {profile?.selected_avatar === avatar.id && (

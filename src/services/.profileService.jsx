@@ -57,3 +57,17 @@ export async function updateAvatar3dUrl(userId, avatarUrl) {
     throw error
   }
 }
+export async function updatePersonalizationRequest(userId, baseAvatarChoice) {
+  const { error } = await supabase
+    .from('profiles')
+    .update({
+      wants_personalized_avatar: true,
+      personalization_status: 'pending',
+      base_avatar_choice: baseAvatarChoice,
+    })
+    .eq('id', userId)
+
+  if (error) {
+    throw error
+  }
+}

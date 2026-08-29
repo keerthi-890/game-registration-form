@@ -23,6 +23,7 @@ function RegisterForm({ onRegisterSuccess }) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
   const [submitSuccess, setSubmitSuccess] = useState(false)
+  const [wantsPersonalizedAvatar, setWantsPersonalizedAvatar] = useState(false)
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target
@@ -103,58 +104,58 @@ function RegisterForm({ onRegisterSuccess }) {
     return Object.keys(newErrors).length === 0
   }
 
-const handleSubmit = async (e) => {
-  e.preventDefault()
-  setSubmitError('')
-  setSubmitSuccess(false)
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setSubmitError('')
+    setSubmitSuccess(false)
 
-  const isValid = validateForm()
-  if (!isValid) return
+    const isValid = validateForm()
+    if (!isValid) return
 
-  setIsSubmitting(true)
-  onRegisterSuccess()
+    setIsSubmitting(true)
 
-  try {
-  const { user, session } = await registerUser(
-    formData.email,
-    formData.password
-  )
+    try {
+      const { user, session } = await registerUser(
+        formData.email,
+        formData.password
+      )
 
-  console.log('Auth signup successful. User ID:', user.id)
+      console.log('Auth signup successful. User ID:', user.id)
 
-  const photoPath = await uploadProfilePhoto(
-    user.id,
-    photoFile
-  )
+      const photoPath = await uploadProfilePhoto(
+        user.id,
+        photoFile
+      )
 
-  console.log('Photo uploaded:', photoPath)
+      console.log('Photo uploaded:', photoPath)
 
-  await createProfile({
-    userId: user.id,
-    username: formData.username,
-    fullName: formData.fullName,
-    dateOfBirth: formData.dateOfBirth,
-    country: formData.country,
-    avatarPath: photoPath,
-  })
+      await createProfile({
+        userId: user.id,
+        username: formData.username,
+        fullName: formData.fullName,
+        dateOfBirth: formData.dateOfBirth,
+        country: formData.country,
+        avatarPath: photoPath,
+      })
 
-  console.log('Profile created successfully')
+      console.log('Profile created successfully')
 
-  setSubmitSuccess(true)
-} catch (error) {
-  console.error('Registration error:', error)
-  setSubmitError(error.message || 'Something went wrong. Please try again.')
-} finally {
-  setIsSubmitting(false)
-}
-}
+      setSubmitSuccess(true)
+      onRegisterSuccess(user.id, wantsPersonalizedAvatar, user.email)
+    } catch (error) {
+      console.error('Registration error:', error)
+      setSubmitError(error.message || 'Something went wrong. Please try again.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   return (
     <div className="register-container">
       <form className="register-form" onSubmit={handleSubmit} noValidate>
         <h1 className="register-title">Create Your Player Account</h1>
         {submitError && <p className="submit-error">{submitError}</p>}
-        {submitSuccess && <p className="submit-success">Account created! Check your email to confirm.</p>} 
+        {submitSuccess && <p className="submit-success">Account created! Check your email to confirm.</p>}
         <div className="photo-upload-section">
           <div className="photo-preview">
             {photoPreview ? (
@@ -271,10 +272,20 @@ const handleSubmit = async (e) => {
           </label>
           {errors.agreedToTerms && <p className="error-text">{errors.agreedToTerms}</p>}
         </div>
+        <div className="form-group checkbox-group">
+          <label>
+            <input
+              type="checkbox"
+              checked={wantsPersonalizedAvatar}
+              onChange={(e) => setWantsPersonalizedAvatar(e.target.checked)}
+            />
+            Request a Personalized Avatar (based on my photo, ready within 48 hours)
+          </label>
+        </div>
 
         <button type="submit" className="submit-button" disabled={isSubmitting}>
-  {isSubmitting ? 'Creating Account...' : 'Create Account'}
-</button>
+          {isSubmitting ? 'Creating Account...' : 'Create Account'}
+        </button>
       </form>
     </div>
   )

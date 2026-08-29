@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './lib/supabaseClient'
-import RegisterForm from './components/RegisterForm'
-import LoginForm from './components/LoginForm'
-import MenuPage from './components/MenuPage'
+import RegisterForm from './Components/RegisterForm'
+import LoginForm from './Components/LoginForm'
+import MenuPage from './Components/MenuPage'
+import PersonalizeAvatarSelect from './Components/PersonalizeAvatarSelect'
 
 function App() {
   const [currentView, setCurrentView] = useState('register')
   const [loggedInUser, setLoggedInUser] = useState(null)
   const [isCheckingSession, setIsCheckingSession] = useState(true)
+  const [pendingPersonalizeUserId, setPendingPersonalizeUserId] = useState(null)
+  const [pendingPersonalizeUserEmail, setPendingPersonalizeUserEmail] = useState(null)
 
   useEffect(() => {
     // Check if a session already exists when the app first loads
@@ -48,8 +51,14 @@ function App() {
     setCurrentView('menu')
   }
 
-  const handleRegisterSuccess = () => {
-    setCurrentView('login')
+  const handleRegisterSuccess = (userId, wantsPersonalizedAvatar, userEmail) => {
+    if (wantsPersonalizedAvatar) {
+      setPendingPersonalizeUserId(userId)
+      setPendingPersonalizeUserEmail(userEmail)
+      setCurrentView('personalize')
+    } else {
+      setCurrentView('login')
+    }
   }
 
   const handleLogout = async () => {
@@ -90,6 +99,14 @@ function App() {
             <button onClick={handleLogout}>Log Out</button>
           </p>
         </>
+      )}
+
+      {currentView === 'personalize' && pendingPersonalizeUserId && (
+        <PersonalizeAvatarSelect
+          userId={pendingPersonalizeUserId}
+          userEmail={pendingPersonalizeUserEmail}
+          onDone={() => setCurrentView('login')}
+        />
       )}
     </div>
   )
