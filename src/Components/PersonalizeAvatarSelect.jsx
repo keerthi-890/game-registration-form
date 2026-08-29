@@ -13,6 +13,20 @@ const baseAvatarOptions = [
   { id: 'base_female_2', label: 'Soldier (Green F)', image: femaleAvatar2 },
 ]
 
+// Converts an already-loaded image URL (e.g. a bundled asset) into base64 + its mime type
+async function imageToBase64(imageUrl) {
+  const response = await fetch(imageUrl)
+  const blob = await response.blob()
+  const arrayBuffer = await blob.arrayBuffer()
+  const bytes = new Uint8Array(arrayBuffer)
+  let binary = ''
+  const chunkSize = 8192
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize))
+  }
+  return { base64: btoa(binary), type: blob.type || 'image/jpeg' }
+}
+
 function PersonalizeAvatarSelect({ userId, userEmail, onDone }) {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isSaving, setIsSaving] = useState(false)
@@ -35,9 +49,25 @@ function PersonalizeAvatarSelect({ userId, userEmail, onDone }) {
     try {
       await updatePersonalizationRequest(userId, current.id)
 
+      let avatarImageBase64 = null
+      let avatarImageType = null
+      try {
+        const converted = await imageToBase64(current.image)
+        avatarImageBase64 = converted.base64
+        avatarImageType = converted.type
+      } catch (imgErr) {
+        console.error('Failed to convert preset avatar image:', imgErr)
+      }
+
       // Fire admin notification — don't block success if this fails
       supabase.functions.invoke('notify-admin', {
-        body: { userId, userEmail, avatarChoice: current.label },
+        body: {
+          userId,
+          userEmail,
+          avatarChoice: current.label,
+          avatarImageBase64,
+          avatarImageType,
+        },
       }).catch((err) => console.error('Admin notify failed:', err))
 
       setSubmitted(true)
