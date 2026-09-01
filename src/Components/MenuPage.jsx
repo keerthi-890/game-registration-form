@@ -1,17 +1,23 @@
 import { useState, useEffect } from 'react'
-import { getProfile, updateAvatar3dUrl } from '../services/.profileService'
-import { getSignedAvatarUrl, uploadAvatar3dFile } from '../services/storageService'
-import AvatarCreator from './AvatarCreator'
+import { getProfile } from '../services/.profileService'
+import maleAvatar1 from '../assets/img1.jpeg'
+import maleAvatar2 from '../assets/img2.jpeg'
+import femaleAvatar1 from '../assets/img3.jpeg'
+import femaleAvatar2 from '../assets/img4.jpeg'
 import '../Style/MenuPage.css'
+
+const presetAvatarOptions = [
+  { id: 'base_male_1', label: 'Soldier (Green)', image: maleAvatar1 },
+  { id: 'base_male_2', label: 'Soldier (Arctic)', image: maleAvatar2 },
+  { id: 'base_female_1', label: 'Soldier (Arctic F)', image: femaleAvatar1 },
+  { id: 'base_female_2', label: 'Soldier (Green F)', image: femaleAvatar2 },
+]
 
 function MenuPage({ user }) {
   const [profile, setProfile] = useState(null)
-  const [myPhotoUrl, setMyPhotoUrl] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState('')
-  const [successMessage, setSuccessMessage] = useState('')
-  const [showAvatarCreator, setShowAvatarCreator] = useState(false)
+  const [selectedAvatarId, setSelectedAvatarId] = useState(null)
   const [showComingSoon, setShowComingSoon] = useState(false)
 
   useEffect(() => {
@@ -20,9 +26,11 @@ function MenuPage({ user }) {
         const profileData = await getProfile(user.id)
         setProfile(profileData)
 
-        if (profileData.avatar_path) {
-          const url = await getSignedAvatarUrl(profileData.avatar_path)
-          setMyPhotoUrl(url)
+        // Default selection: the personalized character if it's ready, otherwise the first preset
+        if (profileData.avatar_3d_url) {
+          setSelectedAvatarId('personalized')
+        } else {
+          setSelectedAvatarId(presetAvatarOptions[0].id)
         }
       } catch (err) {
         console.error('Failed to load profile:', err)
@@ -35,26 +43,9 @@ function MenuPage({ user }) {
     loadProfile()
   }, [user.id])
 
-  const handleAvatarExported = async (avatarDataUri) => {
-    setShowAvatarCreator(false)
-    setError('')
-    setIsSaving(true)
-    try {
-      const hostedUrl = await uploadAvatar3dFile(user.id, avatarDataUri)
-      await updateAvatar3dUrl(user.id, hostedUrl)
-      setProfile((prev) => ({ ...prev, avatar_3d_url: hostedUrl }))
-      setSuccessMessage('Your 3D character is ready!')
-    } catch (err) {
-      console.error('Failed to save 3D avatar:', err)
-      setError('Could not save your 3D avatar.')
-    } finally {
-      setIsSaving(false)
-    }
-  }
-
   const handleStartGame = () => {
     // TODO: replace with actual Unity WebGL handoff once the game build exists.
-    // Will pass profile.avatar_3d_url into Unity via SendMessage at that point.
+    // Will pass either profile.avatar_3d_url (personalized) or the selected preset's id/image into Unity.
     setShowComingSoon(true)
   }
 
@@ -67,32 +58,27 @@ function MenuPage({ user }) {
   return (
     <div className="menu-container">
       <h1 className="menu-title">Character Select</h1>
-      <p className="menu-subtitle">Build your 3D character from your profile photo</p>
+      <p className="menu-subtitle">Choose a character to play with</p>
 
       {error && <p className="submit-error">{error}</p>}
-      {successMessage && <p className="submit-success">{successMessage}</p>}
 
-      <div className="select-stage">
-        <div className="character-portrait">
-          <div className="portrait-frame">
-            {myPhotoUrl ? (
-              <img src={myPhotoUrl} alt="Your profile photo" />
-            ) : (
-              <span className="portrait-placeholder">No Photo</span>
-            )}
-          </div>
-          <div className="character-label">
-            <h3>Source Photo</h3>
-            <p>{user.email}</p>
-          </div>
-        </div>
-
-        <div className={`character-portrait ${has3dAvatar ? 'ready' : ''}`}>
+      <div className="select-stage" style={{ flexWrap: 'wrap', gap: '20px' }}>
+        {/* The user's personalized character — always shown, Ready or Pending */}
+        <div
+          className={`character-portrait ${has3dAvatar ? 'ready' : ''}`}
+          style={{
+            cursor: has3dAvatar ? 'pointer' : 'default',
+            outline: selectedAvatarId === 'personalized' ? '3px solid #6c5ce7' : 'none',
+            borderRadius: '14px',
+            opacity: has3dAvatar ? 1 : 0.6,
+          }}
+          onClick={() => has3dAvatar && setSelectedAvatarId('personalized')}
+        >
           <div className="portrait-frame">
             {has3dAvatar ? (
               <span className="portrait-placeholder">3D Model Ready</span>
             ) : (
-              <span className="portrait-placeholder">Not Created Yet</span>
+              <span className="portrait-placeholder">Pending</span>
             )}
           </div>
           <div className="character-label">
@@ -102,42 +88,38 @@ function MenuPage({ user }) {
             </span>
           </div>
         </div>
+
+        {/* Preset avatars — always playable while waiting */}
+        {presetAvatarOptions.map((avatar) => (
+          <div
+            key={avatar.id}
+            className="character-portrait"
+            style={{
+              cursor: 'pointer',
+              outline: selectedAvatarId === avatar.id ? '3px solid #6c5ce7' : 'none',
+              borderRadius: '14px',
+            }}
+            onClick={() => setSelectedAvatarId(avatar.id)}
+          >
+            <div className="portrait-frame">
+              <img src={avatar.image} alt={avatar.label} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            </div>
+            <div className="character-label">
+              <h3>{avatar.label}</h3>
+            </div>
+          </div>
+        ))}
       </div>
 
       <div className="action-panel">
-        {has3dAvatar ? (
-          <>
-            
-              <a href={profile.avatar_3d_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="glb-link"
-            >
-              View / Download 3D Character (.glb)
-            </a>
-            <button
-              className="submit-button"
-              onClick={() => setShowAvatarCreator(true)}
-            >
-              Recreate Character
-            </button>
-            <button
-              className="submit-button"
-              style={{ marginTop: '14px', background: 'linear-gradient(180deg, #2ecc71, #27ae60)' }}
-              onClick={handleStartGame}
-            >
-              Start Game
-            </button>
-          </>
-        ) : (
-          <button
-            className="submit-button"
-            onClick={() => setShowAvatarCreator(true)}
-            disabled={isSaving}
-          >
-            {isSaving ? 'Saving...' : 'Create My Character'}
-          </button>
-        )}
+        <button
+          className="submit-button"
+          style={{ background: 'linear-gradient(180deg, #2ecc71, #27ae60)' }}
+          onClick={handleStartGame}
+          disabled={!selectedAvatarId}
+        >
+          Start Game
+        </button>
       </div>
 
       {showComingSoon && (
@@ -146,21 +128,12 @@ function MenuPage({ user }) {
             <h1 className="menu-title" style={{ fontSize: '22px' }}>Coming Soon</h1>
             <p className="menu-subtitle">
               The game is still being built. Once it's ready, this button will launch it
-              with your character already loaded in.
+              with your selected character loaded in.
             </p>
             <button className="switch-link" onClick={() => setShowComingSoon(false)}>
               Close
             </button>
           </div>
-        </div>
-      )}
-
-      {showAvatarCreator && (
-        <div className="avatar-creator-modal">
-          <AvatarCreator onAvatarExported={handleAvatarExported} />
-          <button className="switch-link" onClick={() => setShowAvatarCreator(false)}>
-            Cancel
-          </button>
         </div>
       )}
     </div>
