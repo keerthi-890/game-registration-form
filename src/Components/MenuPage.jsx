@@ -26,7 +26,6 @@ function MenuPage({ user }) {
         const profileData = await getProfile(user.id)
         setProfile(profileData)
 
-        // Default selection: the personalized character if it's ready, otherwise the first preset
         if (profileData.avatar_3d_url) {
           setSelectedAvatarId('personalized')
         } else {
@@ -44,8 +43,6 @@ function MenuPage({ user }) {
   }, [user.id])
 
   const handleStartGame = () => {
-    // TODO: replace with actual Unity WebGL handoff once the game build exists.
-    // Will pass either profile.avatar_3d_url (personalized) or the selected preset's id/image into Unity.
     setShowComingSoon(true)
   }
 
@@ -63,7 +60,6 @@ function MenuPage({ user }) {
       {error && <p className="submit-error">{error}</p>}
 
       <div className="select-stage" style={{ flexWrap: 'wrap', gap: '20px' }}>
-        {/* The user's personalized character — always shown, Ready or Pending */}
         <div
           className={`character-portrait ${has3dAvatar ? 'ready' : ''}`}
           style={{
@@ -89,7 +85,6 @@ function MenuPage({ user }) {
           </div>
         </div>
 
-        {/* Preset avatars — always playable while waiting */}
         {presetAvatarOptions.map((avatar) => (
           <div
             key={avatar.id}

@@ -57,10 +57,10 @@ export async function uploadAvatar3dFile(userId, dataUri) {
 
   return data.signedUrl
 }
-export async function getPresetAvatarUrl(fileName) {
+export async function getPersonalizedAvatarUrl(filePath) {
   const { data, error } = await supabase.storage
     .from('avatars')
-    .createSignedUrl(fileName, 60 * 60 * 24 * 30) // valid for 30 days
+    .createSignedUrl(filePath, 60 * 60 * 24)
 
   if (error) {
     throw error

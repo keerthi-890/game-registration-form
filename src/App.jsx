@@ -14,34 +14,28 @@ function App() {
   const [pendingPersonalizeUserEmail, setPendingPersonalizeUserEmail] = useState(null)
 
   useEffect(() => {
-    // Check if a session already exists when the app first loads
     async function checkExistingSession() {
       const { data } = await supabase.auth.getSession()
-
       if (data.session) {
         setLoggedInUser(data.session.user)
         setCurrentView('menu')
       }
-
       setIsCheckingSession(false)
     }
 
     checkExistingSession()
 
-    // Listen for login/logout events happening anywhere in the app
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' && session) {
         setLoggedInUser(session.user)
         setCurrentView('menu')
       }
-
       if (event === 'SIGNED_OUT') {
         setLoggedInUser(null)
         setCurrentView('login')
       }
     })
 
-    // Cleanup: stop listening when the component unmounts
     return () => {
       authListener.subscription.unsubscribe()
     }
@@ -64,7 +58,6 @@ function App() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
-    // onAuthStateChange above will handle switching the view
   }
 
   if (isCheckingSession) {
