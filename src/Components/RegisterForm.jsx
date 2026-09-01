@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import * as faceapi from 'face-api.js'
 import '../Style/RegisterForm.css'
-import { registerUser } from '../services/authService'
+import { registerUser } from '../services/authservice'
 import { uploadProfilePhoto } from '../services/storageService'
 import { createProfile } from '../services/.profileService'
 

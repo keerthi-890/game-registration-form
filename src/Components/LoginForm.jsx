@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { loginUser } from '../services/authService'
+import { loginUser } from '../services/authservice'
 import '../Style/RegisterForm.css'
 
 function LoginForm({ onLoginSuccess }) {
