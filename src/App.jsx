@@ -4,6 +4,7 @@ import RegisterForm from './Components/RegisterForm'
 import LoginForm from './Components/LoginForm'
 import MenuPage from './Components/MenuPage'
 import PersonalizeAvatarSelect from './Components/PersonalizeAvatarSelect'
+import AdminUploadPage from './Components/AdminUploadPage'
 
 function App() {
   const [currentView, setCurrentView] = useState('register')
@@ -108,6 +109,17 @@ function App() {
           onDone={() => setCurrentView('login')}
         />
       )}
+
+      {currentView === 'admin' && <AdminUploadPage />}
+
+      <p style={{ textAlign: 'center', marginTop: '20px' }}>
+        <button
+          style={{ background: 'none', border: 'none', color: '#555', fontSize: '12px', cursor: 'pointer' }}
+          onClick={() => setCurrentView('admin')}
+        >
+          Admin
+        </button>
+      </p>
     </div>
   )
 }

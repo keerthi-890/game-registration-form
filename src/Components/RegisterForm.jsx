@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import * as faceapi from 'face-api.js'
 import '../Style/RegisterForm.css'
 import { registerUser } from '../services/authService'
 import { uploadProfilePhoto } from '../services/storageService'
@@ -15,6 +16,89 @@ const initialFormState = {
   agreedToTerms: false,
 }
 
+// Analyzes the image's pixel data to guess whether it's a real photo
+// vs. a cartoon/illustration/flat-color avatar — no external API needed.
+function analyzeIsRealPhoto(imgElement) {
+  const canvas = document.createElement('canvas')
+  const sampleSize = 100
+  canvas.width = sampleSize
+  canvas.height = sampleSize
+  const ctx = canvas.getContext('2d')
+  ctx.drawImage(imgElement, 0, 0, sampleSize, sampleSize)
+
+  const imageData = ctx.getImageData(0, 0, sampleSize, sampleSize)
+  const pixels = imageData.data
+
+  const colorSet = new Set()
+  let edgeCount = 0
+  const quantizeStep = 16
+  const brightnessValues = []
+
+  for (let i = 0; i < pixels.length; i += 4) {
+    const r = Math.floor(pixels[i] / quantizeStep) * quantizeStep
+    const g = Math.floor(pixels[i + 1] / quantizeStep) * quantizeStep
+    const b = Math.floor(pixels[i + 2] / quantizeStep) * quantizeStep
+    colorSet.add(`${r},${g},${b}`)
+    brightnessValues.push((pixels[i] + pixels[i + 1] + pixels[i + 2]) / 3)
+  }
+
+  const width = sampleSize
+  const height = sampleSize
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width - 1; x++) {
+      const idx = (y * width + x) * 4
+      const idxNext = (y * width + x + 1) * 4
+      const diff =
+        Math.abs(pixels[idx] - pixels[idxNext]) +
+        Math.abs(pixels[idx + 1] - pixels[idxNext + 1]) +
+        Math.abs(pixels[idx + 2] - pixels[idxNext + 2])
+      if (diff > 30) edgeCount++
+    }
+  }
+
+  const totalPixels = sampleSize * sampleSize
+  const uniqueColorRatio = colorSet.size / totalPixels
+  const edgeRatio = edgeCount / totalPixels
+
+  // Local texture variance: compare small 3x3 blocks, measure brightness fluctuation
+  let textureVarianceSum = 0
+  let blockCount = 0
+  for (let y = 1; y < height - 1; y += 3) {
+    for (let x = 1; x < width - 1; x += 3) {
+      const centerIdx = y * width + x
+      const neighbors = [
+        brightnessValues[(y - 1) * width + x],
+        brightnessValues[(y + 1) * width + x],
+        brightnessValues[y * width + (x - 1)],
+        brightnessValues[y * width + (x + 1)],
+      ]
+      const center = brightnessValues[centerIdx]
+      const localVariance =
+        neighbors.reduce((sum, n) => sum + Math.abs(n - center), 0) / neighbors.length
+      textureVarianceSum += localVariance
+      blockCount++
+    }
+  }
+  const avgTextureVariance = textureVarianceSum / blockCount
+
+  console.log('Photo analysis:', {
+    uniqueColors: colorSet.size,
+    uniqueColorRatio: uniqueColorRatio.toFixed(4),
+    edgeRatio: edgeRatio.toFixed(4),
+    avgTextureVariance: avgTextureVariance.toFixed(4),
+  })
+
+  // Score-based: count how many of the 3 signals suggest "real photo"
+  let realPhotoScore = 0
+  if (uniqueColorRatio > 0.01) realPhotoScore++
+  if (edgeRatio > 0.15) realPhotoScore++
+  if (avgTextureVariance > 3.5) realPhotoScore++
+
+  const isRealPhoto = realPhotoScore >= 2 // majority vote
+
+  return { isRealPhoto, uniqueColorRatio, edgeRatio, avgTextureVariance, realPhotoScore }
+}
+
 function RegisterForm({ onRegisterSuccess }) {
   const [formData, setFormData] = useState(initialFormState)
   const [photoFile, setPhotoFile] = useState(null)
@@ -24,6 +108,23 @@ function RegisterForm({ onRegisterSuccess }) {
   const [submitError, setSubmitError] = useState('')
   const [submitSuccess, setSubmitSuccess] = useState(false)
   const [wantsPersonalizedAvatar, setWantsPersonalizedAvatar] = useState(false)
+  const [modelsLoaded, setModelsLoaded] = useState(false)
+  const [isCheckingFace, setIsCheckingFace] = useState(false)
+  const [hasValidFace, setHasValidFace] = useState(false)
+  const imgRef = useRef(null)
+
+  useEffect(() => {
+    async function loadModels() {
+      try {
+        await faceapi.nets.tinyFaceDetector.loadFromUri('/models')
+        setModelsLoaded(true)
+        console.log('Face detection model loaded')
+      } catch (err) {
+        console.error('Failed to load face detection model:', err)
+      }
+    }
+    loadModels()
+  }, [])
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target
@@ -33,7 +134,7 @@ function RegisterForm({ onRegisterSuccess }) {
     }))
   }
 
-  const handlePhotoChange = (e) => {
+  const handlePhotoChange = async (e) => {
     const file = e.target.files[0]
     if (!file) return
 
@@ -50,8 +151,67 @@ function RegisterForm({ onRegisterSuccess }) {
     }
 
     setErrors((prev) => ({ ...prev, photo: undefined }))
+    setHasValidFace(false)
     setPhotoFile(file)
-    setPhotoPreview(URL.createObjectURL(file))
+    const previewUrl = URL.createObjectURL(file)
+    setPhotoPreview(previewUrl)
+
+    if (!modelsLoaded) {
+      setErrors((prev) => ({ ...prev, photo: 'Face detection is still loading, please wait a moment and try again.' }))
+      return
+    }
+
+    setIsCheckingFace(true)
+    try {
+      // Wait for the image element to actually render the new photo
+      await new Promise((resolve) => setTimeout(resolve, 200))
+
+      const img = imgRef.current
+      if (!img) {
+        setErrors((prev) => ({ ...prev, photo: 'Could not verify the photo. Please try again.' }))
+        setIsCheckingFace(false)
+        return
+      }
+
+      // Check 1: is there a face at all?
+      const detection = await faceapi.detectSingleFace(
+        img,
+        new faceapi.TinyFaceDetectorOptions()
+      )
+
+      if (!detection) {
+        setErrors((prev) => ({
+          ...prev,
+          photo: 'No face detected in this photo. Please upload a clear photo of your face.',
+        }))
+        setPhotoFile(null)
+        setPhotoPreview(null)
+        setHasValidFace(false)
+        setIsCheckingFace(false)
+        return
+      }
+
+      // Check 2: is it a real photo, not a cartoon/illustration? (local analysis, no API)
+      const { isRealPhoto } = analyzeIsRealPhoto(img)
+
+      if (!isRealPhoto) {
+        setErrors((prev) => ({
+          ...prev,
+          photo: 'This does not look like a real photo. Please upload an actual photo of your face, not a cartoon or illustration.',
+        }))
+        setPhotoFile(null)
+        setPhotoPreview(null)
+        setHasValidFace(false)
+      } else {
+        setHasValidFace(true)
+        setErrors((prev) => ({ ...prev, photo: undefined }))
+      }
+    } catch (err) {
+      console.error('Photo verification error:', err)
+      setErrors((prev) => ({ ...prev, photo: 'Could not verify the photo. Please try a different image.' }))
+    } finally {
+      setIsCheckingFace(false)
+    }
   }
 
   const validateForm = () => {
@@ -97,7 +257,9 @@ function RegisterForm({ onRegisterSuccess }) {
     }
 
     if (!photoFile) {
-      newErrors.photo = 'Profile photo is required.'
+      newErrors.photo = 'A real face photo is required.'
+    } else if (!hasValidFace) {
+      newErrors.photo = 'Please upload a verified real face photo.'
     }
 
     setErrors(newErrors)
@@ -159,7 +321,12 @@ function RegisterForm({ onRegisterSuccess }) {
         <div className="photo-upload-section">
           <div className="photo-preview">
             {photoPreview ? (
-              <img src={photoPreview} alt="Profile preview" />
+              <img
+                ref={imgRef}
+                src={photoPreview}
+                alt="Profile preview"
+                crossOrigin="anonymous"
+              />
             ) : (
               <span className="photo-placeholder">No Photo</span>
             )}
@@ -168,7 +335,10 @@ function RegisterForm({ onRegisterSuccess }) {
             Choose Photo
             <input type="file" accept="image/*" onChange={handlePhotoChange} hidden />
           </label>
+          {isCheckingFace && <p className="submit-success">Verifying photo...</p>}
+          {hasValidFace && !isCheckingFace && <p className="submit-success">✓ Real face photo verified</p>}
           {errors.photo && <p className="error-text">{errors.photo}</p>}
+          {!modelsLoaded && <p className="error-text">Loading face detection, please wait...</p>}
         </div>
 
         <div className="form-group">
@@ -278,12 +448,16 @@ function RegisterForm({ onRegisterSuccess }) {
               type="checkbox"
               checked={wantsPersonalizedAvatar}
               onChange={(e) => setWantsPersonalizedAvatar(e.target.checked)}
+              disabled={!hasValidFace}
             />
             Request a Personalized Avatar (based on my photo, ready within 48 hours)
           </label>
+          {!hasValidFace && (
+            <p className="error-text">Upload a verified real face photo to unlock this option.</p>
+          )}
         </div>
 
-        <button type="submit" className="submit-button" disabled={isSubmitting}>
+        <button type="submit" className="submit-button" disabled={isSubmitting || isCheckingFace}>
           {isSubmitting ? 'Creating Account...' : 'Create Account'}
         </button>
       </form>

@@ -13,6 +13,7 @@
     "@avaturn/sdk": "^1.1.4",
     "@emailjs/browser": "^4.4.1",
     "@supabase/supabase-js": "^2.112.4",
+    "face-api.js": "^0.22.2",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },
